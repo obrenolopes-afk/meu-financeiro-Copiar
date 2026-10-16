@@ -1,0 +1,10 @@
+{
+  "name": "Meu Financeiro",
+  "short_name": "Financeiro",
+  "description": "Controle pessoal de receitas, despesas, contas e cartões.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#0b100d",
+  "theme_color": "#101713",
+  "lang": "pt-BR"
+}
