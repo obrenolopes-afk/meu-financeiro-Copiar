@@ -53,3 +53,9 @@ Para um app nativo de iPhone, podemos migrar a interface para SwiftUI/Xcode ou u
 - Ao marcar uma conta como paga, o app registra automaticamente uma despesa na data do vencimento. Se reabrir a conta, remove essa despesa gerada.
 - Para evitar dupla contagem, não registre também o pagamento total da fatura como despesa se as compras parceladas já estão lançadas individualmente.
 - Os dados seguem armazenados apenas no navegador/aparelho atual; não há sincronização entre dispositivos.
+
+
+## Importação de imagem
+- A tela Movimentações permite selecionar um print/foto e extrair possíveis despesas via OCR no navegador (biblioteca Tesseract.js carregada por CDN).
+- A extração pode errar valores, datas e descrições; revisar antes de importar é obrigatório. A categorização é baseada em palavras-chave, não IA generativa.
+- A imagem é processada no navegador, mas a biblioteca de OCR é carregada de um CDN externo. Evite imagens com dados completos do cartão.
