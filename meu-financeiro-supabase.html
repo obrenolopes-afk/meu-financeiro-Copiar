@@ -65,7 +65,37 @@ function cloudCardFromDb(c){return {id:c.id,name:c.name,last4:c.last4||'',limit:
 function cloudBillToDb(b){return {id:b.id,user_id:cloudUser.id,name:b.name,amount:Number(b.amount||0),due:b.due,paid:!!b.paid,installments:b.installments||null,group_id:b.groupId||null};}
 function cloudBillFromDb(b){return {id:b.id,name:b.name,amount:Number(b.amount||0),due:b.due,paid:!!b.paid,installments:b.installments||'',groupId:b.group_id||'',...(b.payment_tx_id?{paymentTxId:b.payment_tx_id}:{})};}
 async function cloudPush(){if(!cloudClient||!cloudUser||!cloudReady||cloudBusy)return;const payloads=[['transactions',txs.map(cloudTxToDb)],['cards',cards.map(cloudCardToDb)],['bills',bills.map(cloudBillToDb)]];for(const [table,rows] of payloads){if(rows.length){const {error}=await cloudClient.from(table).upsert(rows,{onConflict:'id'});if(error)throw error;}}cloudMessage('Conectado: alterações sincronizadas com a nuvem.');}
-async function cloudLoad(){cloudBusy=true;try{const results=await Promise.all(['transactions','cards','bills'].map(t=>cloudClient.from(t).select('*')));for(const r of results)if(r.error)throw r.error;const [rt,rc,rb]=results.map(r=>r.data||[]);const localTx=txs,localCards=cards,localBills=bills;txs=rt.map(cloudTxFromDb);cards=rc.map(cloudCardFromDb);bills=rb.map(cloudBillFromDb);const merge=(remote,local)=>{const m=new Map(remote.map(x=>[x.id,x]));for(const x of local)if(!m.has(x.id))m.set(x.id,x);return [...m.values()]};txs=merge(txs,localTx);cards=merge(cards,localCards);bills=merge(bills,localBills);localStorage.setItem('mf_txs',JSON.stringify(txs));localStorage.setItem('mf_cards',JSON.stringify(cards));localStorage.setItem('mf_bills',JSON.stringify(bills));cloudReady=true;render();}finally{cloudBusy=false;}await cloudPush();cloudMessage('Conectado e sincronizado. Seus dados locais foram preservados.');$('storageStatus').textContent='Sincronizado com Supabase';}
+
+async function cloudLoad(){
+  cloudBusy=true;
+  try{
+    const results=await Promise.all(
+      ['transactions','cards','bills'].map(
+        table=>cloudClient.from(table).select('*')
+      )
+    );
+    for(const result of results){
+      if(result.error) throw result.error;
+    }
+
+    const [rt,rc,rb]=results.map(result=>result.data||[]);
+
+    txs=rt.map(cloudTxFromDb);
+    cards=rc.map(cloudCardFromDb);
+    bills=rb.map(cloudBillFromDb);
+
+    localStorage.setItem('mf_txs',JSON.stringify(txs));
+    localStorage.setItem('mf_cards',JSON.stringify(cards));
+    localStorage.setItem('mf_bills',JSON.stringify(bills));
+
+    cloudReady=true;
+    render();
+    $('storageStatus').textContent='Sincronizado com Supabase';
+    cloudMessage('Conectado e sincronizado com a nuvem.');
+  }finally{
+    cloudBusy=false;
+  }
+}
 async function cloudSignIn(){if(!cloudClient){cloudMessage('Falta configurar a Project URL e a Publishable key no início do arquivo.');return;}const email=$('cloudEmail').value.trim(),password=$('cloudPassword').value;if(!email||!password){cloudMessage('Digite seu e-mail e senha da conta Supabase.');return;}cloudMessage('Entrando e carregando seus dados…');const {data,error}=await cloudClient.auth.signInWithPassword({email,password});if(error){cloudMessage('Não foi possível entrar: '+error.message);return;}cloudUser=data.user;try{await cloudLoad();$('cloudPassword').value='';}catch(e){cloudReady=false;cloudMessage('Login realizado, mas houve erro ao carregar dados: '+e.message);}}
 async function cloudSignOut(){if(cloudClient)await cloudClient.auth.signOut();cloudUser=null;cloudReady=false;if($('storageStatus'))$('storageStatus').textContent='Neste aparelho';cloudMessage('Você saiu. Os dados locais continuam neste aparelho.');}
 async function cloudInit(){if(!cloudClient){cloudMessage('Antes de usar, preencha a Project URL e a Publishable key no início do arquivo.');return;}const {data}=await cloudClient.auth.getSession();if(data.session){cloudUser=data.session.user;try{await cloudLoad()}catch(e){cloudMessage('Erro ao sincronizar: '+e.message)}}else cloudMessage('Pronto para conectar. Entre com sua conta Supabase.');}
