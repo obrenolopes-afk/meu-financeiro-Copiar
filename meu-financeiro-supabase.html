@@ -215,8 +215,13 @@ async function pluggyConnect(){
  if(typeof PluggyConnect==='undefined'){msg.textContent='Não foi possível carregar a ferramenta de conexão da Pluggy. Atualize a página e tente novamente.';return;}
  btn.disabled=true;btn.textContent='Preparando conexão…';msg.textContent='Solicitando conexão segura…';
  try{
-  const {data,error}=await cloudClient.functions.invoke('pluggy-connect-token',{body:{}});
-  if(error)throw error;
+  const {data,error}=await cloudClient.functions.invoke('pluggy-connect-token-',{body:{}});
+  if(error){
+   console.error('Erro da Edge Function:', error);
+   let detalhe=error.message||'Falha ao chamar a função.';
+   try{if(error.context && typeof error.context.json==='function'){const corpo=await error.context.json();if(corpo?.error)detalhe=corpo.error;}}catch(_){}
+   throw new Error(detalhe);
+  }
   if(!data||!data.accessToken)throw new Error(data?.error||'A função não retornou o token de conexão.');
   const connect=new PluggyConnect({connectToken:data.accessToken,includeSandbox:false,
    onSuccess:async(itemData)=>{
@@ -229,7 +234,7 @@ async function pluggyConnect(){
    onError:(err)=>{console.error('Pluggy Connect:',err);msg.textContent='A conexão não foi concluída. Tente novamente e confira os detalhes no Supabase.';btn.disabled=false;btn.textContent='Conectar banco';}
   });
   connect.init();
- }catch(e){console.error('Erro ao iniciar Pluggy:',e);msg.textContent='Erro ao iniciar conexão: '+(e.message||'verifique se a função pluggy-connect-token está publicada no Supabase.');btn.disabled=false;btn.textContent='Conectar banco';}
+ }catch(e){console.error('Erro ao iniciar Pluggy:',e);msg.textContent='Erro ao iniciar conexão: '+(e.message||'confira se a função pluggy-connect-token- está publicada no Supabase.');btn.disabled=false;btn.textContent='Conectar banco';}
 }
 
 function download(name,content,type){let a=document.createElement('a'),u=URL.createObjectURL(new Blob([content],{type}));a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),1000)}
