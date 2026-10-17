@@ -44,8 +44,8 @@ button,input,select{font:inherit}button{cursor:pointer}.app{max-width:680px;marg
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script>
 // CONFIGURE estes dois campos com os dados do projeto Supabase (Project URL e Publishable key).
-const SUPABASE_URL='COLE_AQUI_A_PROJECT_URL';
-const SUPABASE_PUBLISHABLE_KEY='COLE_AQUI_A_PUBLISHABLE_KEY';
+const SUPABASE_URL='https://axmooenrpxgggqmjvivq.supabase.co';
+const SUPABASE_PUBLISHABLE_KEY='sb_publishable__HSRdPQ5T40VCiX05JwqLA_-xq8E7V4';
 const supabaseReady=()=>window.supabase?.createClient && SUPABASE_URL.startsWith('https://') && !SUPABASE_URL.includes('COLE_AQUI') && SUPABASE_PUBLISHABLE_KEY && !SUPABASE_PUBLISHABLE_KEY.includes('COLE_AQUI');
 let cloudClient=null,cloudUser=null,cloudReady=false,cloudBusy=false;
 if(supabaseReady()) cloudClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
