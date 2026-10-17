@@ -150,7 +150,53 @@ async function deleteTx(id){
 function openBill(){openModal('Nova conta ou parcela',`<form onsubmit="addBill(event)"><div class="field"><label>Nome da conta</label><input id="billName" required maxlength="70" placeholder="Ex.: Internet, aluguel"></div><div class="formrow"><div class="field"><label>Valor por mês (R$)</label><input id="billAmount" type="number" min="0.01" step="0.01" required></div><div class="field"><label>Primeiro vencimento</label><input id="billDue" type="date" value="${today()}" required></div></div><div class="field"><label>Quantidade de meses/parcelas</label><select id="billRepeat"><option value="1">Somente este mês</option>${Array.from({length:35},(_,i)=>`<option value="${i+2}">${i+2} meses/parcelas</option>`).join('')}</select><p class="smallnote">Use para contas mensais ou parcelas que já sabe que continuarão nos próximos meses.</p></div><button class="primary full">Salvar conta</button></form>`)}
 function addBill(e){e.preventDefault();let amount=+$('billAmount').value,due=$('billDue').value,repeat=Math.max(1,Number($('billRepeat')?.value||1));if(amount<=0)return toast('Informe um valor válido.');if(!due)return toast('Informe o vencimento.');let groupId=repeat>1?crypto.randomUUID():'';for(let i=0;i<repeat;i++){bills.push({id:crypto.randomUUID(),name:repeat>1?`${$('billName').value.trim()} (${i+1}/${repeat})`:$('billName').value.trim(),amount,due:addMonths(due,i),installments:repeat>1?`${i+1} de ${repeat}`:'',paid:false,groupId});} $('monthPicker').value=due.slice(0,7);save();closeModal();toast(repeat>1?`${repeat} compromissos mensais cadastrados.`:'Conta cadastrada.')}
 function toggleBill(id){let b=bills.find(x=>x.id===id);if(!b)return; if(!b.paid){b.paid=true;if(!b.paymentTxId){let tx={id:crypto.randomUUID(),type:'expense',title:b.name,amount:Number(b.amount),date:b.due,category:'Contas',cardId:'',billId:b.id};txs.push(tx);b.paymentTxId=tx.id;}}else{b.paid=false;if(b.paymentTxId)txs=txs.filter(t=>t.id!==b.paymentTxId);b.paymentTxId='';}save()}
-async function deleteBill(id){if(!confirm('Excluir esta conta?'))return;let b=bills.find(x=>x.id===id);if(b?.paymentTxId)txs=txs.filter(t=>t.id!==b.paymentTxId);bills=bills.filter(x=>x.id!==id);save();if(cloudClient&&cloudUser&&cloudReady){try{if(b?.paymentTxId){const tr=await cloudClient.from('transactions').delete().eq('id',b.paymentTxId).eq('user_id',cloudUser.id);if(tr.error)throw tr.error;}const {error}=await cloudClient.from('bills').delete().eq('id',id).eq('user_id',cloudUser.id);if(error)throw error;cloudMessage('Conta excluída e sincronizada com a nuvem.')}catch(e){console.error(e);cloudMessage('Não foi possível excluir a conta na nuvem: '+(e.message||'erro'))}}}
+
+async function deleteBill(id) {
+  if (!confirm('Excluir esta conta?')) return;
+
+  if (!cloudClient || !cloudUser || !cloudReady) {
+    alert('Conecte-se ao Supabase antes de excluir uma conta.');
+    return;
+  }
+
+  const bill = bills.find(b => String(b.id) === String(id));
+  if (!bill) return;
+
+  try {
+    if (bill.paymentTxId) {
+      const { error: txError } = await cloudClient
+        .from('transactions')
+        .delete()
+        .eq('id', bill.paymentTxId)
+        .eq('user_id', cloudUser.id);
+
+      if (txError) throw txError;
+    }
+
+    const { error } = await cloudClient
+      .from('bills')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', cloudUser.id);
+
+    if (error) throw error;
+
+    if (bill.paymentTxId) {
+      txs = txs.filter(t => String(t.id) !== String(bill.paymentTxId));
+    }
+
+    bills = bills.filter(b => String(b.id) !== String(id));
+    localStorage.setItem('mf_txs', JSON.stringify(txs));
+    localStorage.setItem('mf_bills', JSON.stringify(bills));
+    render();
+
+    cloudMessage('Conta excluída da nuvem com sucesso.');
+    toast('Conta excluída.');
+  } catch (e) {
+    console.error(e);
+    alert('Não foi possível excluir a conta: ' + (e.message || 'verifique a conexão'));
+  }
+}
 function openCard(){openModal('Adicionar cartão',`<form onsubmit="addCard(event)"><div class="field"><label>Nome do cartão</label><input id="cardName" required maxlength="35" placeholder="Ex.: Cartão principal"></div><div class="formrow"><div class="field"><label>Limite (R$)</label><input id="cardLimit" type="number" min="0" step="0.01" required></div><div class="field"><label>Últimos 4 dígitos (opcional)</label><input id="cardLast4" inputmode="numeric" pattern="[0-9]{0,4}" maxlength="4" placeholder="1234"></div></div><p class="smallnote">Não informe número completo, validade ou código de segurança do cartão.</p><button class="primary full">Salvar cartão</button></form>`)}
 function addCard(e){e.preventDefault();cards.push({id:crypto.randomUUID(),name:$('cardName').value.trim(),limit:+$('cardLimit').value,last4:$('cardLast4').value});save();closeModal();toast('Cartão cadastrado.')}
 async function deleteCard(id){if(!confirm('Excluir este cartão? Os lançamentos não serão apagados.'))return;cards=cards.filter(c=>c.id!==id);txs=txs.map(t=>t.cardId===id?{...t,cardId:''}:t);save();if(cloudClient&&cloudUser&&cloudReady){try{const {error}=await cloudClient.from('cards').delete().eq('id',id).eq('user_id',cloudUser.id);if(error)throw error;cloudMessage('Cartão excluído e sincronizado com a nuvem.')}catch(e){console.error(e);cloudMessage('Não foi possível excluir o cartão na nuvem: '+(e.message||'erro'))}}}
